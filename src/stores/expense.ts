@@ -13,6 +13,33 @@ export interface ExpenseEntry {
   timestamp: number;
 }
 
+class InMemoryStore implements RedisLike {
+  private store = new Map<string, string>();
+
+  async get(key: string): Promise<string | null> {
+    return this.store.get(key) ?? null;
+  }
+
+  async set(key: string, value: string): Promise<unknown> {
+    this.store.set(key, value);
+    return "OK";
+  }
+
+  async del(key: string): Promise<unknown> {
+    this.store.delete(key);
+    return 1;
+  }
+
+  async keys(pattern: string): Promise<string[]> {
+    const prefix = pattern.replace(/\*$/, "");
+    const result: string[] = [];
+    for (const k of this.store.keys()) {
+      if (k.startsWith(prefix)) result.push(k);
+    }
+    return result;
+  }
+}
+
 let _client: RedisLike | null = null;
 
 function getClient(): RedisLike {
@@ -20,10 +47,8 @@ function getClient(): RedisLike {
 
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) {
-    throw new Error(
-      "REDIS_URL is required for persistent expense storage. " +
-        "Set the REDIS_URL environment variable.",
-    );
+    _client = new InMemoryStore();
+    return _client;
   }
 
   const require = createRequire(import.meta.url);
