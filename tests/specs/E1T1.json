@@ -1,0 +1,98 @@
+[
+  {
+    "name": "/split with no arguments shows usage",
+    "steps": [
+      {
+        "send": { "text": "/split" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Usage: /split <amount> @user1 @user2 [@user3 ...]\n\nSplit an amount equally among mentioned users."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/split with valid amount and two users shows breakdown",
+    "steps": [
+      {
+        "send": { "text": "/split 100 @alice @bob" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Splitting 100 among 2 people:\n\n  @alice\n  @bob\n\nEach person pays/receives: 50"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/split with non-numeric amount shows error",
+    "steps": [
+      {
+        "send": { "text": "/split abc @alice @bob" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Invalid amount. Please provide a positive number, e.g. /split 100 @alice @bob"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/split with fewer than two users shows error",
+    "steps": [
+      {
+        "send": { "text": "/split 100 @alice" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Please mention at least 2 users to split the amount among."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/split with fractional amount splits correctly",
+    "steps": [
+      {
+        "send": { "text": "/split 99.99 @alice @bob @charlie" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Splitting 99.99 among 3 people:\n\n  @alice\n  @bob\n  @charlie\n\nEach person pays/receives: 33.33"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/split with zero or negative amount shows error",
+    "steps": [
+      {
+        "send": { "text": "/split -50 @alice @bob" },
+        "expect": [
+          {
+            "method": "sendMessage",
+            "payload": {
+              "text": "Invalid amount. Please provide a positive number, e.g. /split 100 @alice @bob"
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
