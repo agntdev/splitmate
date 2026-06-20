@@ -5,7 +5,30 @@
       {
         "send": { "text": "/list" },
         "expect": [
-          { "method": "sendMessage", "payload": { "text": "No expenses saved yet." } }
+          { "method": "sendMessage", "payload": { "text": "No saved expenses. Use /save <name> <amount> to add one." } }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "/list shows saved expenses sorted by timestamp",
+    "steps": [
+      {
+        "send": { "text": "/save dinner 45.50" },
+        "expect": [
+          { "method": "sendMessage" }
+        ]
+      },
+      {
+        "send": { "text": "/save lunch 150" },
+        "expect": [
+          { "method": "sendMessage" }
+        ]
+      },
+      {
+        "send": { "text": "/list" },
+        "expect": [
+          { "method": "sendMessage" }
         ]
       }
     ]

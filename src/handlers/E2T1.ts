@@ -26,9 +26,9 @@ composer.command("save", async (ctx) => {
     return;
   }
 
-  await saveExpense(ctx.chat!.id, name, amount);
+  const entry = await saveExpense(ctx.chat!.id, name, amount);
 
-  await ctx.reply(`Expense saved: ${name} - ${amount}`);
+  await ctx.reply(`Expense saved: ${entry.name} - ${entry.amount} (${entry.ts})`);
 });
 
 export default composer;

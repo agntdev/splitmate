@@ -9,7 +9,8 @@ interface RedisLike {
 
 export interface ExpenseEntry {
   name: string;
-  amount: number;
+  amount: string;
+  ts: string;
 }
 
 let _client: RedisLike | null = null;
@@ -49,19 +50,31 @@ export async function saveExpense(
   chatId: number,
   name: string,
   amount: number,
-): Promise<void> {
+): Promise<ExpenseEntry> {
   const client = getClient();
-  await client.set(key(chatId, name), String(amount));
+  const ts = new Date().toISOString();
+  const amountStr = amount.toFixed(2);
+  const value = JSON.stringify({ amount: amountStr, ts });
+  await client.set(key(chatId, name), value);
+  return { name, amount: amountStr, ts };
 }
 
 export async function getExpense(
   chatId: number,
   name: string,
-): Promise<number | null> {
+): Promise<ExpenseEntry | null> {
   const client = getClient();
   const raw = await client.get(key(chatId, name));
   if (raw === null) return null;
-  return Number(raw);
+  try {
+    const parsed = JSON.parse(raw) as ExpenseEntry;
+    if (parsed && typeof parsed.amount === "string" && typeof parsed.ts === "string") {
+      return { name, amount: parsed.amount, ts: parsed.ts };
+    }
+  } catch {
+    // legacy plain-number values: treat as missing
+  }
+  return null;
 }
 
 export async function getAllExpenses(
@@ -75,11 +88,16 @@ export async function getAllExpenses(
   for (const k of keys) {
     const raw = await client.get(k);
     if (raw === null) continue;
-    const amount = Number(raw);
-    if (isNaN(amount)) continue;
-    entries.push({ name: k.slice(prefix.length), amount });
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.amount === "string" && typeof parsed.ts === "string") {
+        entries.push({ name: k.slice(prefix.length), amount: parsed.amount, ts: parsed.ts });
+      }
+    } catch {
+      continue;
+    }
   }
-  entries.sort((a, b) => b.name.localeCompare(a.name));
+  entries.sort((a, b) => b.ts.localeCompare(a.ts));
   return entries;
 }
 
