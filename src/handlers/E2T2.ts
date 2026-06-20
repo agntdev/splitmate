@@ -12,7 +12,11 @@ composer.command("list", async (ctx) => {
     return;
   }
 
-  const lines = entries.map((e) => `${e.name} - ${e.amount}`);
+  const lines = entries.map((e) => {
+    const formatted = e.amount.toFixed(2);
+    const ts = new Date(e.timestamp).toISOString();
+    return `${e.name} — ${formatted} — saved at ${ts}`;
+  });
   const text = `Your expenses:\n${lines.join("\n")}`;
   await ctx.reply(text);
 });

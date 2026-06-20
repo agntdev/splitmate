@@ -9,5 +9,22 @@
         ]
       }
     ]
+  },
+  {
+    "name": "/list shows saved expenses with timestamps",
+    "steps": [
+      {
+        "send": { "text": "/save lunch 150" },
+        "expect": [
+          { "method": "sendMessage" }
+        ]
+      },
+      {
+        "send": { "text": "/list" },
+        "expect": [
+          { "method": "sendMessage" }
+        ]
+      }
+    ]
   }
 ]

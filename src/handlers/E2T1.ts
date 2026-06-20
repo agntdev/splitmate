@@ -26,9 +26,11 @@ composer.command("save", async (ctx) => {
     return;
   }
 
-  await saveExpense(ctx.chat!.id, name, amount);
+  const saved = await saveExpense(ctx.chat!.id, name, amount);
+  const formatted = amount.toFixed(2);
+  const ts = new Date(saved.timestamp).toISOString();
 
-  await ctx.reply(`Expense saved: ${name} - ${amount}`);
+  await ctx.reply(`Saved '${name}' = ${formatted} (${ts})`);
 });
 
 export default composer;
