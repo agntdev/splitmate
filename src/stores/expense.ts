@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { MemorySessionStorage } from "../toolkit/index.js";
 
 interface RedisLike {
   get(key: string): Promise<string | null>;
@@ -13,31 +14,29 @@ export interface ExpenseEntry {
   timestamp: number;
 }
 
-class InMemoryStore implements RedisLike {
-  private store = new Map<string, string>();
-
-  async get(key: string): Promise<string | null> {
-    return this.store.get(key) ?? null;
-  }
-
-  async set(key: string, value: string): Promise<unknown> {
-    this.store.set(key, value);
-    return "OK";
-  }
-
-  async del(key: string): Promise<unknown> {
-    this.store.delete(key);
-    return 1;
-  }
-
-  async keys(pattern: string): Promise<string[]> {
-    const prefix = pattern.replace(/\*$/, "");
-    const result: string[] = [];
-    for (const k of this.store.keys()) {
-      if (k.startsWith(prefix)) result.push(k);
-    }
-    return result;
-  }
+function createInMemoryClient(): RedisLike {
+  const storage = new MemorySessionStorage<string>();
+  return {
+    async get(key: string): Promise<string | null> {
+      return storage.read(key) ?? null;
+    },
+    async set(key: string, value: string): Promise<unknown> {
+      storage.write(key, value);
+      return "OK";
+    },
+    async del(key: string): Promise<unknown> {
+      storage.delete(key);
+      return 1;
+    },
+    async keys(pattern: string): Promise<string[]> {
+      const prefix = pattern.replace(/\*$/, "");
+      const result: string[] = [];
+      for (const k of storage.readAllKeys()) {
+        if (k.startsWith(prefix)) result.push(k);
+      }
+      return result;
+    },
+  };
 }
 
 let _client: RedisLike | null = null;
@@ -47,7 +46,7 @@ function getClient(): RedisLike {
 
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) {
-    _client = new InMemoryStore();
+    _client = createInMemoryClient();
     return _client;
   }
 
