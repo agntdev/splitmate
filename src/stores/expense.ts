@@ -75,9 +75,11 @@ export async function saveExpense(
   chatId: number,
   name: string,
   amount: number,
-): Promise<void> {
+): Promise<{ amount: number; timestamp: number }> {
   const client = getClient();
-  await client.set(key(chatId, name), JSON.stringify({ amount, timestamp: Date.now() }));
+  const ts = Date.now();
+  await client.set(key(chatId, name), JSON.stringify({ amount, timestamp: ts }));
+  return { amount, timestamp: ts };
 }
 
 export async function getExpense(
