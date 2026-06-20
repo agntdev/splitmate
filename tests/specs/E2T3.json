@@ -1,0 +1,13 @@
+[
+  {
+    "name": "/clear with no expenses reports nothing to clear",
+    "steps": [
+      {
+        "send": { "text": "/clear" },
+        "expect": [
+          { "method": "sendMessage", "payload": { "text": "No expenses to clear." } }
+        ]
+      }
+    ]
+  }
+]
