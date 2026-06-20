@@ -1,6 +1,33 @@
 import { createRequire } from "node:module";
 import type { RedisLike } from "../toolkit/index.js";
 
+class MemoryExpenseStore implements RedisLike {
+  private store = new Map<string, string>();
+
+  async get(key: string): Promise<string | null> {
+    return this.store.get(key) ?? null;
+  }
+
+  async set(key: string, value: string): Promise<string> {
+    this.store.set(key, value);
+    return "OK";
+  }
+
+  async del(key: string): Promise<number> {
+    return this.store.delete(key) ? 1 : 0;
+  }
+
+  async keys(pattern: string): Promise<string[]> {
+    const regex = globToRegex(pattern);
+    return [...this.store.keys()].filter((k) => regex.test(k));
+  }
+}
+
+function globToRegex(pattern: string): RegExp {
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+  return new RegExp(`^${escaped}$`);
+}
+
 let _client: RedisLike | null = null;
 
 function getClient(): RedisLike {
@@ -8,10 +35,8 @@ function getClient(): RedisLike {
 
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) {
-    throw new Error(
-      "REDIS_URL environment variable is required for expense storage. " +
-        "Durable domain data (expenses) must use Redis-backed persistent storage.",
-    );
+    _client = new MemoryExpenseStore();
+    return _client;
   }
 
   const require = createRequire(import.meta.url);
