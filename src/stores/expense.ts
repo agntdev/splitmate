@@ -1,44 +1,5 @@
 import { createRequire } from "node:module";
-
-interface RedisLike {
-  get(key: string): Promise<string | null>;
-  set(key: string, value: string): Promise<unknown>;
-  del(key: string): Promise<unknown>;
-  keys(pattern: string): Promise<string[]>;
-}
-
-export interface ExpenseEntry {
-  name: string;
-  amount: number;
-  timestamp: number;
-}
-
-class InMemoryStore implements RedisLike {
-  private store = new Map<string, string>();
-
-  async get(key: string): Promise<string | null> {
-    return this.store.get(key) ?? null;
-  }
-
-  async set(key: string, value: string): Promise<unknown> {
-    this.store.set(key, value);
-    return "OK";
-  }
-
-  async del(key: string): Promise<unknown> {
-    this.store.delete(key);
-    return 1;
-  }
-
-  async keys(pattern: string): Promise<string[]> {
-    const prefix = pattern.replace(/\*$/, "");
-    const result: string[] = [];
-    for (const k of this.store.keys()) {
-      if (k.startsWith(prefix)) result.push(k);
-    }
-    return result;
-  }
-}
+import type { RedisLike } from "../toolkit/index.js";
 
 let _client: RedisLike | null = null;
 
@@ -47,8 +8,10 @@ function getClient(): RedisLike {
 
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) {
-    _client = new InMemoryStore();
-    return _client;
+    throw new Error(
+      "REDIS_URL environment variable is required for expense storage. " +
+        "Durable domain data (expenses) must use Redis-backed persistent storage.",
+    );
   }
 
   const require = createRequire(import.meta.url);
@@ -63,6 +26,12 @@ function getClient(): RedisLike {
     lazyConnect: false,
   });
   return _client;
+}
+
+export interface ExpenseEntry {
+  name: string;
+  amount: number;
+  timestamp: number;
 }
 
 const PREFIX = "expense:";
