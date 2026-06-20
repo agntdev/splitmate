@@ -10,6 +10,7 @@ interface RedisLike {
 export interface ExpenseEntry {
   name: string;
   amount: number;
+  timestamp: number;
 }
 
 let _client: RedisLike | null = null;
@@ -51,7 +52,7 @@ export async function saveExpense(
   amount: number,
 ): Promise<void> {
   const client = getClient();
-  await client.set(key(chatId, name), String(amount));
+  await client.set(key(chatId, name), JSON.stringify({ amount, timestamp: Date.now() }));
 }
 
 export async function getExpense(
@@ -61,7 +62,8 @@ export async function getExpense(
   const client = getClient();
   const raw = await client.get(key(chatId, name));
   if (raw === null) return null;
-  return Number(raw);
+  const parsed = JSON.parse(raw) as { amount: number };
+  return parsed.amount;
 }
 
 export async function getAllExpenses(
@@ -75,11 +77,12 @@ export async function getAllExpenses(
   for (const k of keys) {
     const raw = await client.get(k);
     if (raw === null) continue;
-    const amount = Number(raw);
+    const parsed = JSON.parse(raw) as { amount: number; timestamp: number };
+    const amount = parsed.amount;
     if (isNaN(amount)) continue;
-    entries.push({ name: k.slice(prefix.length), amount });
+    entries.push({ name: k.slice(prefix.length), amount, timestamp: parsed.timestamp ?? 0 });
   }
-  entries.sort((a, b) => b.name.localeCompare(a.name));
+  entries.sort((a, b) => b.timestamp - a.timestamp);
   return entries;
 }
 
