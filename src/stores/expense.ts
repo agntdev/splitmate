@@ -30,6 +30,10 @@ function globToRegex(pattern: string): RegExp {
 
 let _client: RedisLike | null = null;
 
+export function initExpenseStore(): void {
+  _client = null;
+}
+
 function getClient(): RedisLike {
   if (_client) return _client;
 
