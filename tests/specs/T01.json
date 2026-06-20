@@ -1,0 +1,13 @@
+[
+  {
+    "name": "/t01 verifies the skeleton boots and auto-loader works",
+    "steps": [
+      {
+        "send": { "text": "/t01" },
+        "expect": [
+          { "method": "sendMessage", "payload": { "text": "Bot @test_bot is operational. Skeleton verified — auto-loader working." } }
+        ]
+      }
+    ]
+  }
+]
