@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createRequire } from "node:module";
 import type { RedisLike } from "../toolkit/index.js";
 
@@ -28,29 +29,44 @@ function globToRegex(pattern: string): RegExp {
   return new RegExp(`^${escaped}$`);
 }
 
-let _client: RedisLike | null = null;
+const als = new AsyncLocalStorage<RedisLike>();
+const sessionStores = new Map<object, MemoryExpenseStore>();
+
+export function runWithStore<T>(session: object, fn: () => T): T {
+  let store = sessionStores.get(session);
+  if (!store) {
+    store = new MemoryExpenseStore();
+    sessionStores.set(session, store);
+  }
+  return als.run(store, fn);
+}
+
+let _redisClient: RedisLike | null = null;
 
 function getClient(): RedisLike {
-  if (_client) return _client;
+  const alsStore = als.getStore();
+  if (alsStore) return alsStore;
 
   const redisUrl = process.env.REDIS_URL;
-  if (!redisUrl) {
-    _client = new MemoryExpenseStore();
-    return _client;
+  if (redisUrl) {
+    if (_redisClient) return _redisClient;
+    const require = createRequire(import.meta.url);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ioredis: any = require("ioredis");
+    const Redis = (ioredis.default ?? ioredis.Redis ?? ioredis) as new (
+      url: string,
+      opts: Record<string, unknown>,
+    ) => RedisLike;
+    _redisClient = new Redis(redisUrl, {
+      maxRetriesPerRequest: null,
+      lazyConnect: false,
+    });
+    return _redisClient;
   }
 
-  const require = createRequire(import.meta.url);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ioredis: any = require("ioredis");
-  const Redis = (ioredis.default ?? ioredis.Redis ?? ioredis) as new (
-    url: string,
-    opts: Record<string, unknown>,
-  ) => RedisLike;
-  _client = new Redis(redisUrl, {
-    maxRetriesPerRequest: null,
-    lazyConnect: false,
-  });
-  return _client;
+  throw new Error(
+    "No expense store available: neither REDIS_URL nor session store active",
+  );
 }
 
 export interface ExpenseEntry {
