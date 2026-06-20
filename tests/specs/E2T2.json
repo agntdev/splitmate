@@ -1,0 +1,13 @@
+[
+  {
+    "name": "/list with no expenses shows empty message",
+    "steps": [
+      {
+        "send": { "text": "/list" },
+        "expect": [
+          { "method": "sendMessage", "payload": { "text": "No expenses saved yet." } }
+        ]
+      }
+    ]
+  }
+]
