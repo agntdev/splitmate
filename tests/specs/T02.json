@@ -1,6 +1,6 @@
 [
   {
-    "name": "/start replies with a welcome and main menu",
+    "name": "/start sends welcome message with main menu inline keyboard",
     "steps": [
       {
         "send": { "text": "/start" },
