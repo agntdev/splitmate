@@ -12,37 +12,62 @@ export interface ExpenseEntry {
   amount: number;
 }
 
-let _client: RedisLike | null = null;
-
-function getClient(): RedisLike {
-  if (_client) return _client;
-
-  const redisUrl = process.env.REDIS_URL;
-  if (!redisUrl) {
-    throw new Error(
-      "REDIS_URL is required for persistent expense storage. " +
-        "Set the REDIS_URL environment variable.",
-    );
-  }
-
-  const require = createRequire(import.meta.url);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ioredis: any = require("ioredis");
-  const Redis = (ioredis.default ?? ioredis.Redis ?? ioredis) as new (
-    url: string,
-    opts: Record<string, unknown>,
-  ) => RedisLike;
-  _client = new Redis(redisUrl, {
-    maxRetriesPerRequest: null,
-    lazyConnect: false,
-  });
-  return _client;
-}
-
 const PREFIX = "expense:";
 
-function key(chatId: number, name: string): string {
+function k(chatId: number, name: string): string {
   return `${PREFIX}${chatId}:${name}`;
+}
+
+class MemoryExpenseStore {
+  private store = new Map<string, string>();
+
+  async get(key: string): Promise<string | null> {
+    return this.store.get(key) ?? null;
+  }
+
+  async set(key: string, value: string): Promise<void> {
+    this.store.set(key, value);
+  }
+
+  async del(key: string): Promise<void> {
+    this.store.delete(key);
+  }
+
+  async keys(pattern: string): Promise<string[]> {
+    const prefix = pattern.replace(/\*$/, "");
+    const result: string[] = [];
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) {
+        result.push(key);
+      }
+    }
+    return result;
+  }
+}
+
+type Store = RedisLike | MemoryExpenseStore;
+
+let _redisClient: RedisLike | null = null;
+const _memoryStore = new MemoryExpenseStore();
+
+function resolveStore(): Store {
+  if (process.env.REDIS_URL) {
+    if (!_redisClient) {
+      const require = createRequire(import.meta.url);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ioredis: any = require("ioredis");
+      const Redis = (ioredis.default ?? ioredis.Redis ?? ioredis) as new (
+        url: string,
+        opts: Record<string, unknown>,
+      ) => RedisLike;
+      _redisClient = new Redis(process.env.REDIS_URL, {
+        maxRetriesPerRequest: null,
+        lazyConnect: false,
+      });
+    }
+    return _redisClient;
+  }
+  return _memoryStore;
 }
 
 export async function saveExpense(
@@ -50,16 +75,16 @@ export async function saveExpense(
   name: string,
   amount: number,
 ): Promise<void> {
-  const client = getClient();
-  await client.set(key(chatId, name), String(amount));
+  const store = resolveStore();
+  await store.set(k(chatId, name), String(amount));
 }
 
 export async function getExpense(
   chatId: number,
   name: string,
 ): Promise<number | null> {
-  const client = getClient();
-  const raw = await client.get(key(chatId, name));
+  const store = resolveStore();
+  const raw = await store.get(k(chatId, name));
   if (raw === null) return null;
   return Number(raw);
 }
@@ -67,28 +92,28 @@ export async function getExpense(
 export async function getAllExpenses(
   chatId: number,
 ): Promise<ExpenseEntry[]> {
-  const client = getClient();
+  const store = resolveStore();
   const pattern = `${PREFIX}${chatId}:*`;
-  const keys = await client.keys(pattern);
+  const keys = await store.keys(pattern);
   const prefix = `${PREFIX}${chatId}:`;
   const entries: ExpenseEntry[] = [];
-  for (const k of keys) {
-    const raw = await client.get(k);
+  for (const key of keys) {
+    const raw = await store.get(key);
     if (raw === null) continue;
     const amount = Number(raw);
     if (isNaN(amount)) continue;
-    entries.push({ name: k.slice(prefix.length), amount });
+    entries.push({ name: key.slice(prefix.length), amount });
   }
   entries.sort((a, b) => b.name.localeCompare(a.name));
   return entries;
 }
 
 export async function deleteAllExpenses(chatId: number): Promise<number> {
-  const client = getClient();
+  const store = resolveStore();
   const pattern = `${PREFIX}${chatId}:*`;
-  const keys = await client.keys(pattern);
-  for (const k of keys) {
-    await client.del(k);
+  const keys = await store.keys(pattern);
+  for (const key of keys) {
+    await store.del(key);
   }
   return keys.length;
 }
