@@ -17,7 +17,7 @@ composer.command("split", async (ctx) => {
   const mentions = raw.match(mentionRegex) ?? [];
 
   const amountStr = raw.replace(mentionRegex, "").trim();
-  const amount = parseFloat(amountStr);
+  const amount = Number(amountStr);
 
   if (isNaN(amount) || amount <= 0) {
     await ctx.reply(
