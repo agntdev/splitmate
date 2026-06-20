@@ -13,6 +13,20 @@ export interface ExpenseEntry {
   timestamp: number;
 }
 
+function createRedisClient(url: string): RedisLike {
+  const require = createRequire(import.meta.url);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ioredis: any = require("ioredis");
+  const Redis = (ioredis.default ?? ioredis.Redis ?? ioredis) as new (
+    url: string,
+    opts: Record<string, unknown>,
+  ) => RedisLike;
+  return new Redis(url, {
+    maxRetriesPerRequest: null,
+    lazyConnect: false,
+  });
+}
+
 let _client: RedisLike | null = null;
 
 function getClient(): RedisLike {
@@ -26,17 +40,7 @@ function getClient(): RedisLike {
     );
   }
 
-  const require = createRequire(import.meta.url);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ioredis: any = require("ioredis");
-  const Redis = (ioredis.default ?? ioredis.Redis ?? ioredis) as new (
-    url: string,
-    opts: Record<string, unknown>,
-  ) => RedisLike;
-  _client = new Redis(redisUrl, {
-    maxRetriesPerRequest: null,
-    lazyConnect: false,
-  });
+  _client = createRedisClient(redisUrl);
   return _client;
 }
 
